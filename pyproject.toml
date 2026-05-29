@@ -12,11 +12,8 @@ dynamic = [
 ]
 description = "A fast serialization and validation library, with builtin support for JSON, MessagePack, YAML, and TOML."
 readme = "README.md"
-license = "BSD-3-Clause"
-license-files = [
-  "LICENSE",
-]
-requires-python = ">=3.9"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
 maintainers = [
   { name = "Jim Crist-Harif", email = "jcristharif@gmail.com" },
   { name = "Ofek Lev", email = "oss@ofek.dev" },
@@ -33,6 +30,7 @@ keywords = [
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
