@@ -3,6 +3,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def pytest_addoption(parser):
     # Declaring additional command-line options within test suite-specific `conftest.py`

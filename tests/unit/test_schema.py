@@ -3,6 +3,7 @@ import decimal
 import enum
 import typing
 import uuid
+import sys
 from base64 import b64encode
 from collections import namedtuple
 from dataclasses import dataclass
@@ -204,7 +205,19 @@ def test_set_any(typ):
     assert msgspec.json.schema(typ) == {"type": "array", "uniqueItems": True}
 
 
-@pytest.mark.parametrize("cls", [set, frozenset, Set, FrozenSet])
+@pytest.mark.parametrize(
+    "cls",
+    [
+        pytest.param(set, marks=pytest.mark.skipif(
+            sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
+        )),
+        pytest.param(frozenset, marks=pytest.mark.skipif(
+            sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
+        )),
+        Set,
+        FrozenSet,
+    ],
+)
 def test_set_typed(cls):
     typ = cls[int]
     assert msgspec.json.schema(typ) == {
@@ -1144,7 +1157,17 @@ def test_array_metadata(typ, field, constraint):
     assert msgspec.json.schema(typ) == {"type": "array", constraint: 2}
 
 
-@pytest.mark.parametrize("typ", [set, frozenset])
+@pytest.mark.parametrize(
+    "typ",
+    [
+        pytest.param(set, marks=pytest.mark.skipif(
+            sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
+        )),
+        pytest.param(frozenset, marks=pytest.mark.skipif(
+            sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
+        )),
+    ],
+)
 @pytest.mark.parametrize(
     "field, constraint",
     [("min_length", "minItems"), ("max_length", "maxItems")],

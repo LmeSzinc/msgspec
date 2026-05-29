@@ -4,6 +4,7 @@ import gc
 import re
 import secrets
 from abc import ABCMeta, _abc_init, abstractmethod
+from typing import List
 
 import pytest
 
@@ -343,7 +344,7 @@ def test_struct_meta_subclass_with_encoder():
     class EncoderStruct(metaclass=EncoderMeta):
         id: int
         name: str
-        tags: list[str] = []
+        tags: List[str] = []
 
     # Create an instance
     obj = EncoderStruct(id=123, name="test")

@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def source(package_dir):
-    with package_dir.joinpath("_core.c").open() as f:
+    with package_dir.joinpath("_core.c").open(encoding="utf-8") as f:
         return f.read().splitlines()
 
 
