@@ -16,7 +16,7 @@ license = "BSD-3-Clause"
 license-files = [
   "LICENSE",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 maintainers = [
   { name = "Jim Crist-Harif", email = "jcristharif@gmail.com" },
   { name = "Ofek Lev", email = "oss@ofek.dev" },
@@ -33,6 +33,7 @@ keywords = [
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -84,7 +85,8 @@ hooks = [
   "ruff==0.14.1",
 ]
 test-base = [
-  "pytest>=9",
+  # TODO: require >=9 once we drop support for Python 3.9
+  "pytest>=8",
 ]
 test-prof = [
   { include-group = "test-base" },
@@ -101,6 +103,7 @@ test-unit = [
   { include-group = "test-base" },
   "attrs",
   "coverage",
+  "eval-type-backport; python_version < '3.10'",
   "msgpack",
   "pyyaml",
   "tomli; python_version < '3.11'",

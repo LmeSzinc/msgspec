@@ -17,6 +17,7 @@
 #include "atof.h"
 
 /* Python version checks */
+#define PY310_PLUS (PY_VERSION_HEX >= 0x030a0000)
 #define PY311_PLUS (PY_VERSION_HEX >= 0x030b0000)
 #define PY312_PLUS (PY_VERSION_HEX >= 0x030c0000)
 #define PY313_PLUS (PY_VERSION_HEX >= 0x030d0000)
@@ -520,7 +521,9 @@ typedef struct {
     PyObject *get_typeddict_info;
     PyObject *get_dataclass_info;
     PyObject *rebuild;
+#if PY310_PLUS
     PyObject *types_uniontype;
+#endif
 #if PY312_PLUS
     PyObject *typing_typealiastype;
 #endif
@@ -4907,6 +4910,7 @@ typenode_origin_args_metadata(
         }
     }
 
+    #if PY310_PLUS
     if (Py_TYPE(t) == (PyTypeObject *)(state->mod->types_uniontype)) {
         /* Handle types.UnionType unions (`int | float | ...`) */
         args = PyObject_GetAttr(t, state->mod->str___args__);
@@ -4914,6 +4918,7 @@ typenode_origin_args_metadata(
         origin = state->mod->typing_union;
         Py_INCREF(origin);
     }
+    #endif
 
     *out_origin = origin;
     *out_args = args;
@@ -10502,8 +10507,15 @@ ms_encode_err_type_unsupported(PyTypeObject *type) {
  *************************************************************************/
 
 #define MS_HAS_TZINFO(o)  (((_PyDateTime_BaseTZInfo *)(o))->hastzinfo)
+#if PY310_PLUS
 #define MS_DATE_GET_TZINFO(o) PyDateTime_DATE_GET_TZINFO(o)
 #define MS_TIME_GET_TZINFO(o) PyDateTime_TIME_GET_TZINFO(o)
+#else
+#define MS_DATE_GET_TZINFO(o)      (MS_HAS_TZINFO(o) ? \
+    ((PyDateTime_DateTime *)(o))->tzinfo : Py_None)
+#define MS_TIME_GET_TZINFO(o)      (MS_HAS_TZINFO(o) ? \
+    ((PyDateTime_Time *)(o))->tzinfo : Py_None)
+#endif
 
 #ifndef Py_GIL_DISABLED
 #ifndef TIMEZONE_CACHE_SIZE
@@ -22307,7 +22319,9 @@ msgspec_clear(PyObject *m)
     Py_CLEAR(st->get_typeddict_info);
     Py_CLEAR(st->get_dataclass_info);
     Py_CLEAR(st->rebuild);
+#if PY310_PLUS
     Py_CLEAR(st->types_uniontype);
+#endif
 #if PY312_PLUS
     Py_CLEAR(st->typing_typealiastype);
 #endif
@@ -22379,7 +22393,9 @@ msgspec_traverse(PyObject *m, visitproc visit, void *arg)
     Py_VISIT(st->get_typeddict_info);
     Py_VISIT(st->get_dataclass_info);
     Py_VISIT(st->rebuild);
+#if PY310_PLUS
     Py_VISIT(st->types_uniontype);
+#endif
 #if PY312_PLUS
     Py_VISIT(st->typing_typealiastype);
 #endif
@@ -22601,10 +22617,12 @@ PyInit__core(void)
     SET_REF(rebuild, "rebuild");
     Py_DECREF(temp_module);
 
+#if PY310_PLUS
     temp_module = PyImport_ImportModule("types");
     if (temp_module == NULL) return NULL;
     SET_REF(types_uniontype, "UnionType");
     Py_DECREF(temp_module);
+#endif
 
     /* Get the EnumMeta type */
     temp_module = PyImport_ImportModule("enum");

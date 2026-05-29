@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
 import msgspec
+from typing import Any
 
 
 # Some utilities for writing and reading length-prefix framed messages. Using
