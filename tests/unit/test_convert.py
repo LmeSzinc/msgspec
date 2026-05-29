@@ -9,7 +9,6 @@ from base64 import b64encode
 from collections.abc import MutableMapping
 from dataclasses import dataclass, field
 from typing import (
-    Annotated,
     Any,
     Dict,
     FrozenSet,
@@ -19,7 +18,6 @@ from typing import (
     NamedTuple,
     Set,
     Tuple,
-    TypedDict,
     TypeVar,
     Union,
 )
@@ -32,6 +30,22 @@ from msgspec import Meta, Struct, ValidationError, convert, to_builtins
 from .utils import max_call_depth, temp_module
 
 try:
+    from typing import Annotated
+except ImportError:
+    try:
+        from typing_extensions import Annotated
+    except ImportError:
+        Annotated = None
+
+try:
+    from typing import TypedDict
+except ImportError:
+    try:
+        from typing_extensions import TypedDict
+    except ImportError:
+        TypedDict = None
+
+try:
     import attrs
 except ImportError:
     attrs = None
@@ -39,6 +53,8 @@ except ImportError:
 PY310 = sys.version_info[:2] >= (3, 10)
 PY311 = sys.version_info[:2] >= (3, 11)
 PY312 = sys.version_info[:2] >= (3, 12)
+
+uses_annotated = pytest.mark.skipif(Annotated is None, reason="Annotated not available")
 
 UTC = datetime.timezone.utc
 
@@ -340,6 +356,7 @@ class TestInt:
             ("lt", -1, [-(2**64), -2], [-1, 2**63, 2**65]),
         ],
     )
+    @uses_annotated
     def test_int_constr_bounds(self, name, bound, good, bad):
         class Ex(Struct):
             x: Annotated[int, Meta(**{name: bound})]
@@ -354,6 +371,7 @@ class TestInt:
             with pytest.raises(ValidationError, match=err_msg):
                 convert({"x": x}, Ex)
 
+    @uses_annotated
     def test_int_constr_multiple_of(self):
         class Ex(Struct):
             x: Annotated[int, Meta(multiple_of=2)]
@@ -375,6 +393,7 @@ class TestInt:
             (Meta(ge=0, le=10), [0, 10], [-1, 11]),
         ],
     )
+    @uses_annotated
     def test_int_constrs(self, meta, good, bad):
         class Ex(Struct):
             x: Annotated[int, meta]
@@ -420,6 +439,7 @@ class TestFloat:
             (Meta(ge=0.0, le=10.0), [0.0, 2.0, 10.0], [-1.0, 11.5, 11]),
         ],
     )
+    @uses_annotated
     def test_float_constrs(self, meta, good, bad):
         class Ex(Struct):
             x: Annotated[float, meta]
@@ -436,6 +456,7 @@ class TestFloat:
         assert res == 1.5
         assert type(res) is float
 
+    @uses_annotated
     def test_constr_float_from_decimal(self):
         typ = Annotated[float, Meta(ge=0)]
         res = convert(decimal.Decimal("1.5"), typ)
@@ -466,6 +487,7 @@ class TestStr:
             (Meta(max_length=3, pattern="x"), ["xy", "xyz"], ["y", "wxyz"]),
         ],
     )
+    @uses_annotated
     def test_str_constrs(self, meta, good, bad):
         class Ex(Struct):
             x: Annotated[str, meta]
@@ -504,6 +526,7 @@ class TestBinary:
 
     @pytest.mark.parametrize("in_type", [bytes, bytearray, memoryview, str])
     @pytest.mark.parametrize("out_type", [bytes, bytearray, memoryview])
+    @uses_annotated
     def test_binary_constraints(self, in_type, out_type):
         class Ex(Struct):
             x: Annotated[out_type, Meta(min_length=2, max_length=4)]
@@ -568,6 +591,7 @@ class TestDateTime:
             )
 
     @pytest.mark.parametrize("as_str", [False, True])
+    @uses_annotated
     def test_datetime_constrs(self, as_str):
         class Ex(Struct):
             x: Annotated[datetime.datetime, Meta(tz=True)]
@@ -606,6 +630,7 @@ class TestTime:
             convert("12:34:00Z", datetime.time, builtin_types=(datetime.time,))
 
     @pytest.mark.parametrize("as_str", [False, True])
+    @uses_annotated
     def test_time_constrs(self, as_str):
         class Ex(Struct):
             x: Annotated[datetime.time, Meta(tz=True)]
@@ -1002,6 +1027,7 @@ class TestSequences:
                 convert(msg, Cache)
 
     @pytest.mark.parametrize("out_type", [list, tuple, set, frozenset])
+    @uses_annotated
     def test_sequence_constrs(self, out_type):
         class Ex(Struct):
             x: Annotated[out_type, Meta(min_length=2, max_length=4)]
@@ -1239,6 +1265,7 @@ class TestDict:
             with max_call_depth(5):
                 convert(msg, Cache)
 
+    @uses_annotated
     def test_dict_constrs(self, dictcls):
         class Ex(Struct):
             x: Annotated[dict, Meta(min_length=2, max_length=4)]
@@ -1253,6 +1280,7 @@ class TestDict:
                 convert(dictcls({"x": x}), Ex)
 
 
+@pytest.mark.skipif(TypedDict is None, reason="TypedDict not available")
 class TestTypedDict:
     def test_typeddict_total_true(self):
         class Ex(TypedDict):
@@ -1301,6 +1329,10 @@ class TestTypedDict:
 
         class Ex(Base, total=False):
             c: str
+
+        if not hasattr(Ex, "__required_keys__"):
+            # This should be Python 3.8, builtin typing only
+            pytest.skip("partially optional TypedDict not supported")
 
         x = {"a": 1, "b": "two", "c": "extra"}
         assert convert(x, Ex) == x
@@ -2343,6 +2375,7 @@ class TestLax:
             with pytest.raises(ValidationError, match="Expected `int`, got `float`"):
                 convert(x, int, strict=False)
 
+    @uses_annotated
     def test_lax_int_constr(self):
         typ = Annotated[int, Meta(ge=0)]
         assert convert("1", typ, strict=False) == 1
@@ -2397,6 +2430,7 @@ class TestLax:
                 ):
                     convert(msg, float, strict=False)
 
+    @uses_annotated
     def test_lax_float_constr(self):
         assert convert("1.5", Annotated[float, Meta(ge=0)], strict=False) == 1.5
 
@@ -2407,6 +2441,7 @@ class TestLax:
         for x in ["1", "1.5", "false", "null"]:
             assert convert(x, str, strict=False) == x
 
+    @uses_annotated
     def test_lax_str_constr(self):
         typ = Annotated[str, Meta(max_length=10)]
         assert convert("xxx", typ, strict=False) == "xxx"
@@ -2455,7 +2490,7 @@ class TestLax:
                 convert(msg, type=datetime.datetime, strict=False)
 
     @pytest.mark.parametrize("msg", [123, -123, 123.456, "123.456"])
-    def test_lax_datetime_naive_required(self, msg):
+    def test_lax_datetime_naive_required(self, msg, Annotated):
         with pytest.raises(ValidationError, match="no timezone component"):
             convert(
                 msg, type=Annotated[datetime.datetime, Meta(tz=False)], strict=False
@@ -2536,6 +2571,7 @@ class TestLax:
             ("100.5", "`float` <= 100.0"),
         ],
     )
+    @uses_annotated
     def test_lax_union_invalid_constr(self, msg, err):
         """Ensure that values that parse properly but don't meet the specified
         constraints error with a specific constraint error"""

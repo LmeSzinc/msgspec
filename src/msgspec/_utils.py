@@ -2,7 +2,14 @@
 import collections
 import sys
 import typing
-from typing import _AnnotatedAlias  # noqa: F401
+
+try:
+    from typing_extensions import _AnnotatedAlias
+except Exception:
+    try:
+        from typing import _AnnotatedAlias
+    except Exception:
+        _AnnotatedAlias = None
 
 try:
     from typing_extensions import get_type_hints as _get_type_hints
@@ -18,8 +25,13 @@ except Exception:
         Required = NotRequired = None
 
 
-def get_type_hints(obj):
-    return _get_type_hints(obj, include_extras=True)
+if Required is None and _AnnotatedAlias is None:
+    # No extras available, so no `include_extras`
+    get_type_hints = _get_type_hints
+else:
+
+    def get_type_hints(obj):
+        return _get_type_hints(obj, include_extras=True)
 
 
 # The `is_class` argument was new in 3.11, but was backported to 3.9 and 3.10.

@@ -7,7 +7,6 @@ from base64 import b64encode
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import (
-    Annotated,
     Any,
     Dict,
     FrozenSet,
@@ -29,8 +28,23 @@ import msgspec
 from msgspec import Meta
 
 from .utils import temp_module
+try:
+    from typing import Annotated
+except ImportError:
+    try:
+        from typing_extensions import Annotated
+    except ImportError:
+        pytestmark = pytest.mark.skip("Annotated types not available")
+
 
 T = TypeVar("T")
+
+
+def type_index(typ, args):
+    try:
+        return typ[args]
+    except TypeError:
+        pytest.skip("Not supported in Python 3.8")
 
 
 def test_any():
@@ -181,7 +195,7 @@ def test_sequence_any(typ):
 @pytest.mark.parametrize("cls", [list, tuple, List, Tuple])
 def test_sequence_typed(cls):
     args = (int, ...) if cls in (tuple, Tuple) else int
-    typ = cls[args]
+    typ = type_index(cls, args)
     assert msgspec.json.schema(typ) == {"type": "array", "items": {"type": "integer"}}
 
 
@@ -202,7 +216,7 @@ def test_set_typed(cls):
 
 @pytest.mark.parametrize("cls", [tuple, Tuple])
 def test_tuple(cls):
-    typ = cls[int, float, str]
+    typ = type_index(cls, (int, float, str))
     assert msgspec.json.schema(typ) == {
         "type": "array",
         "minItems": 3,
@@ -218,7 +232,7 @@ def test_tuple(cls):
 
 @pytest.mark.parametrize("cls", [tuple, Tuple])
 def test_empty_tuple(cls):
-    typ = cls[()]
+    typ = type_index(cls, ())
     assert msgspec.json.schema(typ) == {
         "type": "array",
         "minItems": 0,
@@ -233,7 +247,7 @@ def test_dict_any(typ):
 
 @pytest.mark.parametrize("cls", [dict, Dict])
 def test_dict_typed(cls):
-    typ = cls[str, int]
+    typ = type_index(cls, (str, int))
     assert msgspec.json.schema(typ) == {
         "type": "object",
         "additionalProperties": {"type": "integer"},
@@ -636,6 +650,10 @@ def test_typeddict_optional(use_typing_extensions):
         """An example docstring"""
 
         c: int
+
+    if not hasattr(Example, "__required_keys__"):
+        # This should be Python 3.8, builtin typing only
+        pytest.skip("partially optional TypedDict not supported")
 
     assert msgspec.json.schema(Example) == {
         "$ref": "#/$defs/Example",

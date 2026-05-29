@@ -92,3 +92,18 @@ def add_performance_profiling_options(parser):
         metavar="SIZE",
         help="Size of the benchmark data (default: 1000)",
     )
+
+
+@pytest.fixture
+def Annotated():
+    try:
+        from typing import Annotated
+
+        return Annotated
+    except ImportError:
+        try:
+            from typing_extensions import Annotated
+
+            return Annotated
+        except ImportError:
+            pytest.skip("Annotated types not available")

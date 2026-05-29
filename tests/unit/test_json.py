@@ -14,7 +14,6 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import (
-    Annotated,
     Any,
     Dict,
     FrozenSet,
@@ -33,6 +32,9 @@ import pytest
 import msgspec
 
 UTC = datetime.timezone.utc
+
+PY39 = sys.version_info[:2] >= (3, 9)
+py39_plus = pytest.mark.skipif(not PY39, reason="3.9+ only")
 
 
 class FruitInt(enum.IntEnum):
@@ -840,6 +842,7 @@ class TestDatetime:
         s = msgspec.json.encode(x)
         assert s == expected
 
+    @py39_plus
     def test_encode_datetime_zoneinfo(self):
         import zoneinfo
 
@@ -1959,6 +1962,11 @@ class TestDict:
             dec.decode(b'{"apple": 1, "carrot": 2}')
 
     def test_decode_dict_str_key_constraints(self):
+        try:
+            from typing import Annotated
+        except ImportError:
+            pytest.skip("Annotated types not available")
+
         dec = msgspec.json.Decoder(
             Dict[Annotated[str, msgspec.Meta(min_length=3)], int]
         )
@@ -2058,6 +2066,11 @@ class TestDict:
         assert type(list(res)[0]) is int
 
     def test_decode_dict_int_key_constraints(self):
+        try:
+            from typing import Annotated
+        except ImportError:
+            pytest.skip("Annotated types not available")
+
         dec = msgspec.json.Decoder(Dict[Annotated[int, msgspec.Meta(ge=3)], int])
         assert dec.decode(b'{"4": 1, "5": 2}') == {4: 1, 5: 2}
 
