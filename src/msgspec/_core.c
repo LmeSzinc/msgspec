@@ -17,6 +17,7 @@
 #include "atof.h"
 
 /* Python version checks */
+#define PY39_PLUS  (PY_VERSION_HEX >= 0x03090000)
 #define PY310_PLUS (PY_VERSION_HEX >= 0x030a0000)
 #define PY311_PLUS (PY_VERSION_HEX >= 0x030b0000)
 #define PY312_PLUS (PY_VERSION_HEX >= 0x030c0000)
@@ -52,6 +53,20 @@ ms_popcount(uint64_t i) {                            \
     i = (i + (i >> 4)) & 0x0F0F0F0F0F0F0F0F;  // groups of 8
     return (uint64_t)(i * 0x0101010101010101) >> 56;  // sum bytes
 }
+#endif
+
+#if PY39_PLUS
+#define CALL_ONE_ARG(f, a) PyObject_CallOneArg(f, a)
+#define CALL_NO_ARGS(f) PyObject_CallNoArgs(f)
+#define CALL_METHOD_ONE_ARG(o, n, a) PyObject_CallMethodOneArg(o, n, a)
+#define CALL_METHOD_NO_ARGS(o, n) PyObject_CallMethodNoArgs(o, n)
+#define SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
+#else
+#define CALL_ONE_ARG(f, a) PyObject_CallFunctionObjArgs(f, a, NULL)
+#define CALL_NO_ARGS(f) PyObject_CallFunctionObjArgs(f, NULL)
+#define CALL_METHOD_ONE_ARG(o, n, a) PyObject_CallMethodObjArgs(o, n, a, NULL)
+#define CALL_METHOD_NO_ARGS(o, n) PyObject_CallMethodObjArgs(o, n, NULL)
+#define SET_SIZE(obj, size) (((PyVarObject *)obj)->ob_size = size)
 #endif
 
 /* In Python 3.12+, tp_dict is NULL for some core types, PyType_GetDict returns
@@ -165,12 +180,12 @@ PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **result)
  * memory usage. */
 # define FAST_BYTES_SHRINK(obj, size) \
     do { \
-    Py_SET_SIZE(obj, size); \
+    SET_SIZE(obj, size); \
     PyBytes_AS_STRING(obj)[size] = '\0'; \
     } while (0);
 # define FAST_BYTEARRAY_SHRINK(obj, size) \
     do { \
-    Py_SET_SIZE(obj, size); \
+    SET_SIZE(obj, size); \
     PyByteArray_AS_STRING(obj)[size] = '\0'; \
     } while (0);
 
@@ -873,7 +888,7 @@ _Lookup_OnMissing(Lookup *lookup, PyObject *val, PathNode *path) {
     MsgspecState *mod = msgspec_get_global_state();
 
     if (lookup->cls != NULL) {
-        PyObject *out = PyObject_CallMethodOneArg(lookup->cls, mod->str__missing_, val);
+        PyObject *out = CALL_METHOD_ONE_ARG(lookup->cls, mod->str__missing_, val);
         if (out == NULL) {
             PyErr_Clear();
         }
@@ -1011,7 +1026,7 @@ IntLookup_New(PyObject *arg, PyObject *tag_field, PyObject *cls, bool array_like
         );
         if (out == NULL) goto cleanup;
         /* XXX: overwrite `ob_size`, since we lied above */
-        Py_SET_SIZE(out, size);
+        SET_SIZE(out, size);
 
         out->offset = imin;
         for (size_t i = 0; i < size; i++) {
@@ -1061,7 +1076,7 @@ IntLookup_New(PyObject *arg, PyObject *tag_field, PyObject *cls, bool array_like
         );
         if (out == NULL) goto cleanup;
         /* XXX: overwrite `ob_size`, since we lied above */
-        Py_SET_SIZE(out, size);
+        SET_SIZE(out, size);
 
         for (size_t i = 0; i < size; i++) {
             out->table[i].key = 0;
@@ -1912,7 +1927,7 @@ Meta_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     /* regex compile pattern if provided */
     if (pattern != NULL) {
         MsgspecState *mod = msgspec_get_global_state();
-        regex = PyObject_CallOneArg(mod->re_compile, pattern);
+        regex = CALL_ONE_ARG(mod->re_compile, pattern);
         if (regex == NULL) return NULL;
     }
 
@@ -2407,7 +2422,7 @@ Factory_Call(PyObject *self) {
     else if (factory == (PyObject *)(&PyDict_Type)) {
         return PyDict_New();
     }
-    return PyObject_CallNoArgs(factory);
+    return CALL_NO_ARGS(factory);
 }
 
 static PyObject *
@@ -5559,7 +5574,7 @@ rename_pascal(PyObject *rename, PyObject *field) {
 
 static PyObject*
 rename_callable(PyObject *rename, PyObject *field) {
-    PyObject *temp = PyObject_CallOneArg(rename, field);
+    PyObject *temp = CALL_ONE_ARG(rename, field);
     if (temp == NULL) return NULL;
     if (PyUnicode_CheckExact(temp)) return temp;
     if (temp == Py_None) {
@@ -6296,7 +6311,7 @@ structmeta_construct_tag(StructMetaInfo *info, MsgspecState *mod, PyObject *cls)
         if (PyCallable_Check(info->temp_tag)) {
             PyObject *qualname = simple_qualname(cls);
             if (qualname == NULL) return -1;
-            info->tag_value = PyObject_CallOneArg(info->temp_tag, qualname);
+            info->tag_value = CALL_ONE_ARG(info->temp_tag, qualname);
             Py_DECREF(qualname);
             if (info->tag_value == NULL) return -1;
         }
@@ -6943,7 +6958,7 @@ StructInfo_Convert_lock_held(PyObject *obj) {
     }
 
     /* Extract annotations from the original type object */
-    annotations = PyObject_CallOneArg(mod->get_class_annotations, obj);
+    annotations = CALL_ONE_ARG(mod->get_class_annotations, obj);
     if (annotations == NULL) goto error;
 
     /* Allocate and zero-out a new StructInfo */
@@ -7103,7 +7118,7 @@ StructMeta_signature(StructMetaObject *self, void *closure)
     signature_cls = PyObject_GetAttrString(inspect, "Signature");
     if (signature_cls == NULL) goto cleanup;
 
-    annotations = PyObject_CallOneArg(st->get_type_hints, (PyObject *)self);
+    annotations = CALL_ONE_ARG(st->get_type_hints, (PyObject *)self);
     if (annotations == NULL) goto cleanup;
 
     parameters = PyList_New(nfields);
@@ -7141,7 +7156,7 @@ StructMeta_signature(StructMetaObject *self, void *closure)
         if (parameter == NULL) goto cleanup;
         PyList_SET_ITEM(parameters, i, parameter);
     }
-    res = PyObject_CallOneArg(signature_cls, parameters);
+    res = CALL_ONE_ARG(signature_cls, parameters);
 cleanup:
     Py_XDECREF(inspect);
     Py_XDECREF(parameter_cls);
@@ -7482,7 +7497,7 @@ Struct_get_index(PyObject *obj, Py_ssize_t index) {
 static MS_INLINE int
 Struct_post_init(StructMetaObject *st_type, PyObject *obj) {
     if (st_type->post_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(st_type->post_init, obj);
+        PyObject *res = CALL_ONE_ARG(st_type->post_init, obj);
         if (res == NULL) return -1;
         Py_DECREF(res);
     }
@@ -8554,7 +8569,7 @@ TypedDictInfo_Convert(PyObject *obj) {
     }
 
     /* Not cached, extract fields from TypedDict object */
-    PyObject *temp = PyObject_CallOneArg(mod->get_typeddict_info, obj);
+    PyObject *temp = CALL_ONE_ARG(mod->get_typeddict_info, obj);
     if (temp == NULL) return NULL;
     annotations = PyTuple_GET_ITEM(temp, 0);
     Py_INCREF(annotations);
@@ -8722,7 +8737,7 @@ DataclassInfo_Convert(PyObject *obj) {
     }
 
     /* Not cached, extract fields from Dataclass object */
-    PyObject *temp = PyObject_CallOneArg(mod->get_dataclass_info, obj);
+    PyObject *temp = CALL_ONE_ARG(mod->get_dataclass_info, obj);
     if (temp == NULL) return NULL;
     cls = PyTuple_GET_ITEM(temp, 0);
     Py_INCREF(cls);
@@ -8855,7 +8870,7 @@ DataclassInfo_post_decode(DataclassInfo *self, PyObject *obj, PathNode *path) {
                 );
                 bool is_factory = self->fields[i].type->types & MS_EXTRA_FLAG;
                 if (is_factory) {
-                    default_value = PyObject_CallNoArgs(default_value);
+                    default_value = CALL_NO_ARGS(default_value);
                     if (default_value == NULL) return -1;
                 }
                 int status = PyObject_GenericSetAttr(obj, name, default_value);
@@ -8867,7 +8882,7 @@ DataclassInfo_post_decode(DataclassInfo *self, PyObject *obj, PathNode *path) {
         }
     }
     if (self->post_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(self->post_init, obj);
+        PyObject *res = CALL_ONE_ARG(self->post_init, obj);
         if (res == NULL) {
             ms_maybe_wrap_validation_error(path);
             return -1;
@@ -8942,7 +8957,7 @@ NamedTupleInfo_Convert(PyObject *obj) {
     }
 
     /* Not cached, extract fields from NamedTuple object */
-    annotations = PyObject_CallOneArg(mod->get_class_annotations, obj);
+    annotations = CALL_ONE_ARG(mod->get_class_annotations, obj);
     if (annotations == NULL) goto cleanup;
 
     if (PyType_Check(obj)) {
@@ -10826,7 +10841,7 @@ ms_encode_time_parts(
         int32_t offset_days = 0, offset_secs = 0;
 
         if (tzinfo != PyDateTime_TimeZone_UTC) {
-            PyObject *offset = PyObject_CallMethodOneArg(
+            PyObject *offset = CALL_METHOD_ONE_ARG(
                 tzinfo, mod->str_utcoffset, datetime_or_none
             );
             if (offset == NULL) {
@@ -11744,7 +11759,7 @@ ms_decode_decimal_from_pyobj(PyObject *str, PathNode *path, MsgspecState *mod) {
     if (mod == NULL) {
         mod = msgspec_get_global_state();
     }
-    return PyObject_CallOneArg(mod->DecimalType, str);
+    return CALL_ONE_ARG(mod->DecimalType, str);
 }
 
 static PyObject *
@@ -12141,7 +12156,7 @@ json_float_hook(
     PyObject *str = PyUnicode_New(size, 127);
     if (str == NULL) return NULL;
     memcpy(ascii_get_buffer(str), buf, size);
-    PyObject *out = PyObject_CallOneArg(float_hook, str);
+    PyObject *out = CALL_ONE_ARG(float_hook, str);
     Py_DECREF(str);
     if (out == NULL) {
         ms_maybe_wrap_validation_error(path);
@@ -13500,7 +13515,7 @@ mpack_encode_uncommon(EncoderState *self, PyTypeObject *type, PyObject *obj)
     if (self->enc_hook != NULL) {
         int status = -1;
         PyObject *temp;
-        temp = PyObject_CallOneArg(self->enc_hook, obj);
+        temp = CALL_ONE_ARG(self->enc_hook, obj);
         if (temp == NULL) return -1;
         if (!Py_EnterRecursiveCall(" while serializing an object")) {
             status = mpack_encode(self, temp);
@@ -14178,7 +14193,7 @@ json_encode_dict_key_noinline(EncoderState *self, PyObject *obj) {
     else if (self->enc_hook != NULL) {
         int status = -1;
         PyObject *temp;
-        temp = PyObject_CallOneArg(self->enc_hook, obj);
+        temp = CALL_ONE_ARG(self->enc_hook, obj);
         if (temp == NULL) return -1;
         if (!Py_EnterRecursiveCall(" while serializing an object")) {
             status = json_encode_dict_key(self, temp);
@@ -14608,7 +14623,7 @@ json_encode_uncommon(EncoderState *self, PyTypeObject *type, PyObject *obj) {
     if (self->enc_hook != NULL) {
         int status = -1;
         PyObject *temp;
-        temp = PyObject_CallOneArg(self->enc_hook, obj);
+        temp = CALL_ONE_ARG(self->enc_hook, obj);
         if (temp == NULL) return -1;
         if (!Py_EnterRecursiveCall(" while serializing an object")) {
             status = json_encode(self, temp);
@@ -15485,7 +15500,7 @@ mpack_decode_list(
      */
     res = PyList_New(Py_MIN(16, size));
     if (res == NULL) return NULL;
-    Py_SET_SIZE(res, 0);
+    SET_SIZE(res, 0);
     if (size == 0) return res;
 
     if (Py_EnterRecursiveCall(" while deserializing an object")) {
@@ -15503,7 +15518,7 @@ mpack_decode_list(
         /* Append item to list */
         if (MS_LIKELY((LIST_CAPACITY(res) > Py_SIZE(res)))) {
             PyList_SET_ITEM(res, Py_SIZE(res), item);
-            Py_SET_SIZE(res, Py_SIZE(res) + 1);
+            SET_SIZE(res, Py_SIZE(res) + 1);
         }
         else {
             int status = PyList_Append(res, item);
@@ -16093,7 +16108,7 @@ mpack_decode_dataclass(
     PyObject *out = dataclass_type->tp_alloc(dataclass_type, 0);
     if (out == NULL) goto error;
     if (info->pre_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(info->pre_init, out);
+        PyObject *res = CALL_ONE_ARG(info->pre_init, out);
         if (res == NULL) goto error;
         Py_DECREF(res);
     }
@@ -16543,7 +16558,9 @@ static struct PyMethodDef Decoder_methods[] = {
         "decode", (PyCFunction) Decoder_decode, METH_FASTCALL,
         Decoder_decode__doc__,
     },
+#if PY39_PLUS
     {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS},
+#endif
     {NULL, NULL}                /* sentinel */
 };
 
@@ -17743,7 +17760,7 @@ json_decode_list(JSONDecoderState *self, TypeNode *type, TypeNode *el_type, Path
         /* Append item to list */
         if (MS_LIKELY((LIST_CAPACITY(out) > Py_SIZE(out)))) {
             PyList_SET_ITEM(out, Py_SIZE(out), item);
-            Py_SET_SIZE(out, Py_SIZE(out) + 1);
+            SET_SIZE(out, Py_SIZE(out) + 1);
         }
         else {
             int status = PyList_Append(out, item);
@@ -18613,7 +18630,7 @@ json_decode_dataclass(
     out = dataclass_type->tp_alloc(dataclass_type, 0);
     if (out == NULL) goto error;
     if (info->pre_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(info->pre_init, out);
+        PyObject *res = CALL_ONE_ARG(info->pre_init, out);
         if (res == NULL) goto error;
         Py_DECREF(res);
     }
@@ -19598,7 +19615,9 @@ static struct PyMethodDef JSONDecoder_methods[] = {
         "decode_lines", (PyCFunction) JSONDecoder_decode_lines, METH_FASTCALL,
         JSONDecoder_decode_lines__doc__,
     },
+#if PY39_PLUS
     {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS},
+#endif
     {NULL, NULL}                /* sentinel */
 };
 
@@ -20327,7 +20346,7 @@ to_builtins(ToBuiltinsState *self, PyObject *obj, bool is_key) {
     if (self->enc_hook != NULL) {
         PyObject *out = NULL;
         PyObject *temp;
-        temp = PyObject_CallOneArg(self->enc_hook, obj);
+        temp = CALL_ONE_ARG(self->enc_hook, obj);
         if (temp == NULL) return NULL;
         if (!Py_EnterRecursiveCall(" while serializing an object")) {
             out = to_builtins(self, temp, is_key);
@@ -21599,7 +21618,7 @@ convert_dict_to_dataclass(
     PyObject *out = dataclass_type->tp_alloc(dataclass_type, 0);
     if (out == NULL) goto error;
     if (info->pre_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(info->pre_init, out);
+        PyObject *res = CALL_ONE_ARG(info->pre_init, out);
         if (res == NULL) goto error;
         Py_DECREF(res);
     }
@@ -21814,7 +21833,7 @@ convert_object_to_dataclass(
     PyObject *out = dataclass_type->tp_alloc(dataclass_type, 0);
     if (out == NULL) goto error;
     if (info->pre_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(info->pre_init, out);
+        PyObject *res = CALL_ONE_ARG(info->pre_init, out);
         if (res == NULL) goto error;
         Py_DECREF(res);
     }
@@ -21831,7 +21850,7 @@ convert_object_to_dataclass(
                 );
                 bool is_factory = info->fields[i].type->types & MS_EXTRA_FLAG;
                 if (is_factory) {
-                    val = PyObject_CallNoArgs(default_val);
+                    val = CALL_NO_ARGS(default_val);
                 }
                 else {
                     Py_INCREF(default_val);
@@ -21854,7 +21873,7 @@ convert_object_to_dataclass(
         if (status < 0) goto error;
     }
     if (info->post_init != NULL) {
-        PyObject *res = PyObject_CallOneArg(info->post_init, out);
+        PyObject *res = CALL_ONE_ARG(info->post_init, out);
         if (res == NULL) {
             ms_maybe_wrap_validation_error(path);
             goto error;
