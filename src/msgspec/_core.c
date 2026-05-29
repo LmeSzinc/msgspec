@@ -340,7 +340,11 @@ static const char base64_encode_table[] =
 
 #define MS_TYPE_IS_GC(t) (((PyTypeObject *)(t))->tp_flags & Py_TPFLAGS_HAVE_GC)
 #define MS_OBJECT_IS_GC(obj) MS_TYPE_IS_GC(Py_TYPE(obj))
+#if PY39_PLUS
 #define MS_IS_TRACKED(o) PyObject_GC_IsTracked(o)
+#else
+#define MS_IS_TRACKED(o) _PyObject_GC_IS_TRACKED(o)
+#endif
 
 /* Is this object something that is/could be GC tracked? True if
  * - the value supports GC
@@ -6019,7 +6023,7 @@ structmeta_collect_fields(StructMetaInfo *info, MsgspecState *mod, bool kwonly) 
             Py_DECREF(annotate);
             return -1;
         }
-        annotations = PyObject_CallOneArg(
+        annotations = CALL_ONE_ARG(
             annotate, format
         );
         Py_DECREF(annotate);
@@ -6542,7 +6546,7 @@ StructMeta_new_inner(
         int is_abc_meta = PyType_IsSubtype(type, mod->ABCMetaType);
         if (is_abc_meta < 0) goto cleanup;
         if (is_abc_meta) {
-            PyObject *res = PyObject_CallOneArg(mod->_abc_init, (PyObject *)cls);
+            PyObject *res = CALL_ONE_ARG(mod->_abc_init, (PyObject *)cls);
             if (res == NULL) goto cleanup;
             Py_DECREF(res);
         }
