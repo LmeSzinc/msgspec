@@ -61,16 +61,20 @@ bench = [
   "cattrs==25.3.0 ; python_version >= '3.9'",
   "mashumaro==3.14 ; python_version < '3.9'",
   "mashumaro==3.17 ; python_version >= '3.9'",
-  "msgpack==1.1.2",
+  "msgpack==1.1.1 ; python_version < '3.9'",
+  "msgpack==1.1.2 ; python_version >= '3.9'",
   "orjson==3.10.15 ; python_version < '3.9'",
   "orjson==3.11.4 ; python_version >= '3.9'",
-  "ormsgpack==1.11.0",
+  "ormsgpack==1.5.0 ; python_version < '3.9'",
+  "ormsgpack==1.11.0 ; python_version >= '3.9'",
   "pydantic==2.10.8 ; python_version < '3.9'",
   "pydantic==2.12.4 ; python_version >= '3.9'",
   "python-rapidjson==1.22",
-  "pysimdjson==7.0.2",
+  "pysimdjson==6.0.2 ; python_version < '3.9'",
+  "pysimdjson==7.0.2 ; python_version >= '3.9'",
   "requests",
-  "ujson==5.11.0",
+  "ujson==5.10.0 ; python_version < '3.9'",
+  "ujson==5.11.0 ; python_version >= '3.9'",
 ]
 dev = [
   "rust-just",
@@ -84,7 +88,8 @@ doc = [
   "sphinx-design",
 ]
 hooks = [
-  "codespell==2.4.1",
+  "codespell==2.3.0 ; python_version < '3.9'",
+  "codespell==2.4.1 ; python_version >= '3.9'",
   "prek>=0.2.13",
   "ruff==0.14.1",
 ]
