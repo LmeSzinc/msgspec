@@ -1,7 +1,9 @@
 [build-system]
 requires = [
-  "setuptools>=64,<76",
-  "setuptools-scm>=8,<10",
+  "setuptools>=64,<76 ; python_version < '3.9'",
+  "setuptools>=80 ; python_version >= '3.9'",
+  "setuptools-scm>=8,<10 ; python_version < '3.9'",
+  "setuptools-scm>=8 ; python_version >= '3.9'",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -55,12 +57,15 @@ Source = "https://github.com/jcrist/msgspec"
 
 [dependency-groups]
 bench = [
-  "cattrs==24.1.2",
+  "cattrs==24.1.2 ; python_version < '3.9'",
+  "cattrs==25.3.0 ; python_version >= '3.9'",
   "mashumaro==3.17",
   "msgpack==1.1.2",
-  "orjson==3.10.15",
+  "orjson==3.10.15 ; python_version < '3.9'",
+  "orjson==3.11.4 ; python_version >= '3.9'",
   "ormsgpack==1.11.0",
-  "pydantic==2.10.8",
+  "pydantic==2.10.8 ; python_version < '3.9'",
+  "pydantic==2.12.4 ; python_version >= '3.9'",
   "python-rapidjson==1.22",
   "pysimdjson==7.0.2",
   "requests",
@@ -83,7 +88,8 @@ hooks = [
   "ruff==0.14.1",
 ]
 test-base = [
-  "pytest>=8,<8.4",
+  "pytest>=8,<8.4 ; python_version < '3.9'",
+  "pytest>=8 ; python_version >= '3.9'",
 ]
 test-prof = [
   { include-group = "test-base" },
