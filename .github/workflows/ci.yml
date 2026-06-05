@@ -3,6 +3,11 @@ name: Build and Test
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: Override version (e.g. 0.22.0.dev1). Leave empty to auto-detect from git tags
+        type: string
+        default: ""
+        required: false
       build-all:
         description: Build all wheels including musllinux
         type: boolean
@@ -14,6 +19,7 @@ jobs:
     name: Validate build
     uses: ./.github/workflows/prepare-build.yml
     with:
+      version: ${{ inputs.version || '' }}
       run-static-analysis: true
       fetch-latest-python: true
 

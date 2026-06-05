@@ -3,6 +3,9 @@ name: Prepare Build
 on:
   workflow_call:
     inputs:
+      version:
+        description: Override version string for setuptools-scm
+        type: string
       run-static-analysis:
         description: Whether to run static analysis checks
         type: boolean
@@ -61,6 +64,10 @@ jobs:
     - name: Build source distribution
       id: build-sdist
       run: |-
+        if [ -n "${{ inputs.version }}" ]; then
+          export SETUPTOOLS_SCM_PRETEND_VERSION="${{ inputs.version }}"
+          echo "Using version override: ${{ inputs.version }}"
+        fi
         uv build --sdist
         sdist_name=$(basename dist/*.tar.gz)
         echo "file-name=${sdist_name}" >> $GITHUB_OUTPUT
