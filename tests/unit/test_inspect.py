@@ -33,6 +33,7 @@ import msgspec.inspect as mi
 from msgspec import Meta
 
 from .utils import temp_module
+
 try:
     from typing import Annotated
 except ImportError:

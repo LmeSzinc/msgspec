@@ -1,9 +1,9 @@
 import datetime
 import decimal
 import enum
+import sys
 import typing
 import uuid
-import sys
 from base64 import b64encode
 from collections import namedtuple
 from dataclasses import dataclass
@@ -29,6 +29,7 @@ import msgspec
 from msgspec import Meta
 
 from .utils import temp_module
+
 try:
     from typing import Annotated
 except ImportError:
@@ -208,12 +209,18 @@ def test_set_any(typ):
 @pytest.mark.parametrize(
     "cls",
     [
-        pytest.param(set, marks=pytest.mark.skipif(
-            sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
-        )),
-        pytest.param(frozenset, marks=pytest.mark.skipif(
-            sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
-        )),
+        pytest.param(
+            set,
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
+            ),
+        ),
+        pytest.param(
+            frozenset,
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
+            ),
+        ),
         Set,
         FrozenSet,
     ],
@@ -1160,12 +1167,18 @@ def test_array_metadata(typ, field, constraint):
 @pytest.mark.parametrize(
     "typ",
     [
-        pytest.param(set, marks=pytest.mark.skipif(
-            sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
-        )),
-        pytest.param(frozenset, marks=pytest.mark.skipif(
-            sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
-        )),
+        pytest.param(
+            set,
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 9), reason="set[int] requires Python 3.9+"
+            ),
+        ),
+        pytest.param(
+            frozenset,
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 9), reason="frozenset[int] requires Python 3.9+"
+            ),
+        ),
     ],
 )
 @pytest.mark.parametrize(
