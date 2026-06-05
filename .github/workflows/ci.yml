@@ -11,7 +11,7 @@ on:
       build-all:
         description: Build all wheels including musllinux
         type: boolean
-        default: false
+        default: true
         required: false
 
 jobs:
