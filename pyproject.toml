@@ -59,7 +59,8 @@ Source = "https://github.com/jcrist/msgspec"
 bench = [
   "cattrs==24.1.2 ; python_version < '3.9'",
   "cattrs==25.3.0 ; python_version >= '3.9'",
-  "mashumaro==3.17",
+  "mashumaro==3.14 ; python_version < '3.9'",
+  "mashumaro==3.17 ; python_version >= '3.9'",
   "msgpack==1.1.2",
   "orjson==3.10.15 ; python_version < '3.9'",
   "orjson==3.11.4 ; python_version >= '3.9'",
