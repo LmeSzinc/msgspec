@@ -1,39 +1,13 @@
 name: Build and Test
 
 on:
-  push:
-    branches:
-    - main
-  pull_request:
-    branches:
-    - main
-    paths:
-    # Changes to the package itself
-    - src/msgspec/**
-    - pyproject.toml
-    - setup.py
-    - MANIFEST.in
-    # Changes to CI execution
-    - .github/workflows/ci.yml
-    - .github/workflows/prepare-build.yml
-    - .github/workflows/build-wheels.yml
-    - .github/workflows/profile.yml
-    - .github/actions/latest-supported-python/action.yml
-    - .github/actions/fetch-release-history/action.yml
-    - .github/actions/load-env/action.yml
-    - .cibuildwheel.toml
-    - .justfile
-    # Changes to testing
-    - tests/**
-    - .codecov.yml
-    - .codespellrc
-    - .coveragerc
-    - .pre-commit-config.yaml
-    - .pytest.toml
-    - .ruff.toml
-  release:
-    types:
-    - published
+  workflow_dispatch:
+    inputs:
+      build-all:
+        description: Build all wheels including musllinux
+        type: boolean
+        default: false
+        required: false
 
 jobs:
   prepare:
@@ -173,14 +147,14 @@ jobs:
       run: just test-typing
 
   build-wheels:
-    name: Build wheels ${{ github.event_name == 'release' && 'for release' || '' }}
+    name: Build wheels
     needs:
     - test
     - prepare
     uses: ./.github/workflows/build-wheels.yml
     with:
       sdist-name: "${{ needs.prepare.outputs.sdist-name }}"
-      build-all: ${{ github.event_name == 'release' }}
+      build-all: ${{ inputs.build-all || false }}
 
   profile:
     name: Run profiling tests on Python ${{ needs.prepare.outputs.latest-supported-python }}
@@ -190,23 +164,3 @@ jobs:
     uses: ./.github/workflows/profile.yml
     with:
       python: "${{ needs.prepare.outputs.latest-supported-python }}"
-
-  upload-pypi:
-    name: Upload artifacts to PyPI
-    if: github.event_name == 'release' && github.event.action == 'published'
-    needs:
-    - prepare
-    - build-wheels
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-
-    steps:
-    - uses: actions/download-artifact@v6
-      with:
-        pattern: artifact-*
-        merge-multiple: true
-        path: dist
-
-    - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
