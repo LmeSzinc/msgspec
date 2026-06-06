@@ -11992,6 +11992,18 @@ ms_post_decode_int64(
             return ms_decode_timedelta_from_int64(x, path);
         }
     }
+    /* Per PEP 586: Literal[1] == Literal[True], Literal[0] == Literal[False].
+     * Cross-match integer values with their bool literal equivalents.
+     * This also handles Python 3.8's typing.Literal cache collision where
+     * Literal[1, False] becomes Literal[True, False]. */
+    if (x == 1 && (type->types & MS_TYPE_BOOLLITERAL_TRUE)) {
+        Py_INCREF(Py_True);
+        return Py_True;
+    }
+    if (x == 0 && (type->types & MS_TYPE_BOOLLITERAL_FALSE)) {
+        Py_INCREF(Py_False);
+        return Py_False;
+    }
     return ms_validation_error(from_str ? "str" : "int", type, path);
 }
 
@@ -12022,6 +12034,15 @@ ms_post_decode_uint64(
         if (type->types & MS_TYPE_TIMEDELTA) {
             return ms_decode_timedelta_from_uint64(x, path);
         }
+    }
+    /* Per PEP 586: cross-match integer values with bool literal equivalents */
+    if (x == 1 && (type->types & MS_TYPE_BOOLLITERAL_TRUE)) {
+        Py_INCREF(Py_True);
+        return Py_True;
+    }
+    if (x == 0 && (type->types & MS_TYPE_BOOLLITERAL_FALSE)) {
+        Py_INCREF(Py_False);
+        return Py_False;
     }
     return ms_validation_error(from_str ? "str" : "int", type, path);
 }
@@ -15443,6 +15464,23 @@ mpack_decode_bool(DecoderState *self, PyObject *val, TypeNode *type, PathNode *p
         Py_INCREF(Py_False);
         return Py_False;
     }
+    /* Per PEP 586: cross-match bool values with int literal equivalents */
+    if (val == Py_True && (type->types & MS_TYPE_INTLITERAL)) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 1, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
+    }
+    if (val == Py_False && (type->types & MS_TYPE_INTLITERAL)) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 0, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
+    }
     if (type->types & (MS_TYPE_BOOLLITERAL_TRUE | MS_TYPE_BOOLLITERAL_FALSE)) {
         ms_raise_validation_error(path, "Invalid enum value %R%U", val);
         return NULL;
@@ -17078,6 +17116,15 @@ json_decode_true(JSONDecoderState *self, TypeNode *type, PathNode *path) {
         Py_INCREF(Py_True);
         return Py_True;
     }
+    /* Per PEP 586: cross-match with int literal equivalents */
+    if (type->types & MS_TYPE_INTLITERAL) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 1, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
+    }
     if (type->types & MS_TYPE_BOOLLITERAL_FALSE) {
         ms_raise_validation_error(path, "Invalid enum value %R%U", Py_True);
         return NULL;
@@ -17102,6 +17149,15 @@ json_decode_false(JSONDecoderState *self, TypeNode *type, PathNode *path) {
     if (type->types & (MS_TYPE_ANY | MS_TYPE_BOOL | MS_TYPE_BOOLLITERAL_FALSE)) {
         Py_INCREF(Py_False);
         return Py_False;
+    }
+    /* Per PEP 586: cross-match with int literal equivalents */
+    if (type->types & MS_TYPE_INTLITERAL) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 0, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
     }
     if (type->types & MS_TYPE_BOOLLITERAL_TRUE) {
         ms_raise_validation_error(path, "Invalid enum value %R%U", Py_False);
@@ -20781,6 +20837,23 @@ convert_bool(
     if (obj == Py_False && (type->types & MS_TYPE_BOOLLITERAL_FALSE)) {
         Py_INCREF(Py_False);
         return Py_False;
+    }
+    /* Per PEP 586: cross-match bool values with int literal equivalents */
+    if (obj == Py_True && (type->types & MS_TYPE_INTLITERAL)) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 1, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
+    }
+    if (obj == Py_False && (type->types & MS_TYPE_INTLITERAL)) {
+        IntLookup *lookup = TypeNode_get_int_enum_or_literal(type);
+        if (lookup != NULL) {
+            PyObject *res = IntLookup_GetInt64OrError(lookup, 0, path);
+            if (res != NULL) return res;
+            PyErr_Clear();
+        }
     }
     if (type->types & (MS_TYPE_BOOLLITERAL_TRUE | MS_TYPE_BOOLLITERAL_FALSE)) {
         ms_raise_validation_error(path, "Invalid enum value %R%U", obj);
