@@ -958,7 +958,7 @@ class TestLiterals:
             (Literal[True], [True], [False]),
             (Literal[False], [False], [True]),
             (Literal[True, False], [True, False], []),
-            (Literal[1, False], [1, False, True, 0], [2]),
+            (Literal[1, False], [1, False], [True]),
             (Literal[True, "yes", None], [True, "yes", None], [False]),
         ],
     )
