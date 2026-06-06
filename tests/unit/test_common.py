@@ -963,9 +963,11 @@ class TestLiterals:
             # faithfully — it receives True as a genuine literal value. There is no information
             # anywhere that the user originally wrote 1 instead of True.
             # We have no choice but to accept py38 has version-dependent behaviour
-            (Literal[1, False],
-             [1, False, True, 0] if sys.version_info < (3, 9) else [1, False],
-             [2] if sys.version_info < (3, 9) else [True]),
+            (
+                Literal[1, False],
+                [1, False, True, 0] if sys.version_info < (3, 9) else [1, False],
+                [2] if sys.version_info < (3, 9) else [True],
+            ),
             (Literal[True, "yes", None], [True, "yes", None], [False]),
         ],
     )
